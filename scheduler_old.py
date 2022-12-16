@@ -1,4 +1,3 @@
-import json
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -12,7 +11,6 @@ from log_settings import logger
 
 class StopScheduler(Exception):
     pass
-
 
 
 @dataclass
@@ -44,9 +42,9 @@ class Scheduler:
 
     def run(self):
         print('run')
-        # if self.status == self._status.STATE_RUNNING:
-        #     print(self.status)
-        #     return
+        if self.status == self._status.STATE_RUNNING:
+            print(self.status)
+            return
         #
         # self.status = self._status.STATE_RUNNING
         # # if self._event is None or self._event.is_set():
@@ -72,7 +70,6 @@ class Scheduler:
     def stop(self):
         print('stop')
         self.status = self._status.STATE_PAUSED
-        # self._thread.join()
         self.main_loop.throw(StopScheduler)
 
     def _main_loop(self):
@@ -82,52 +79,30 @@ class Scheduler:
         # while self.status == STATE_RUNNING:
         # while self.status == self._status.STATE_RUNNING:
         try:
-            while jobs := (yield):
-                # for task in tasks:
-                time.sleep(0.5)
-                print('while')
-                # self._event.wait(wait_seconds)
-                # self._event.clear()
-                self.process_jobs = self._process_jobs()
-                self.process_jobs.send(None)
-                for job in jobs:
-                    self.process_jobs.send(job)
+            while tasks := (yield):
+                for task in tasks:
+                    time.sleep(0.5)
+                    print('while')
+                    # self._event.wait(wait_seconds)
+                    # self._event.clear()
+                    self._process_jobs()
         except StopScheduler:
-            self._save_tasks()
-        except StopIteration:
-            pass
+            print('stop')
 
     def _process_jobs(self):
 
         now = int(datetime.now().timestamp())
-        # for job in self.job_list:
-        #     if int(job.start_at.timestamp()) - now < 0:
-        #         job.run()
-        #         self.job_list.remove(job)
-        #         self._event.set()
-
-        try:
-            job = (yield)
+        for job in self.job_list:
             if int(job.start_at.timestamp()) - now < 0:
                 job.run()
                 self.job_list.remove(job)
-        except StopScheduler:
-            pass
-
+                self._event.set()
 
     def shutdown(self, *args, **kwargs):
         print('shotdown')
         self.status = self._status.STATE_PAUSED
-        # self._event.clear()
-        # self._thread.join()
+        self._event.clear()
 
-        self.main_loop.throw(StopScheduler)
-
-    def _save_tasks(self):
-        logger.info('save')
-        # job_json = json.dump(self.job_list)
-        # with open('jobs.json', 'w') as fp:
-        #     fp.write(str(job_json))
 
 
 s = Scheduler()
