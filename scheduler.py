@@ -1,18 +1,11 @@
 import json
-import time
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from enum import Enum
-from threading import Thread, Event
+from datetime import datetime
+from typing import Any
 
 from job import Job
 from log_settings import logger
-
-
-class StopScheduler(Exception):
-    pass
-
+from tasks import TASKS
 
 
 @dataclass
@@ -23,138 +16,79 @@ class SchedulerStatus:
 
 
 class Scheduler:
-    _thread = None
-    _event = Event()
-    _status = SchedulerStatus
-    main_loop = None
+    """
+    Задание выдалось крайне тяжелым и неприятным для такого короткого срока, поставлено не очень понятно, много времени
+    ушло на понимание требований.
+    Поэтому сейчас не реализованно:
+    - ретраи и зависимости у задач (плохо выстроена логика, лучше идей сейчас не вижу)
+    - длительность выполнения задачи (аналогичная ситуация, т.к логика работы на корутинах мне плохо понятна, то и время
+      не совсем ясно как засекать)
+    - сохранение джобов в файл реализовано, но оно ужасно (как можно это сделать с объектами функций?)
 
-    def __init__(self, pool_size=10):
+    Изначально хотел сделать выполнение планировщика в отдельном потоке на фоне, но судя по отзывам
+    это не подходит под условия про корутины.
+    """
+    _file = 'convert.json'
+    _status = SchedulerStatus
+    job_list: list[Job] = []
+
+    def __init__(self, pool_size: int = 10):
         self.pool_size = pool_size
-        self.job_list: list[Job] = []
         self.status = self._status.STATE_INIT
 
-    def schedule(self, job):
-        print('schedule')
+    def schedule(self, job: Job) -> None:
         if not len(self.job_list) >= self.pool_size:
-            # self.run()
-            # self._event.wait()
             self.job_list.append(job)
         else:
             logger.warning('Job was not added')
 
-    def run(self):
-        print('run')
-        # if self.status == self._status.STATE_RUNNING:
-        #     print(self.status)
-        #     return
-        #
-        # self.status = self._status.STATE_RUNNING
-        # # if self._event is None or self._event.is_set():
-        # #     self._event = Event()
-        #
-        # self._thread = Thread(target=self._main_loop, name='MyScheduler')
-        # self._thread.start()
-        #
-        # # if self.job_list:
-        # #     with ThreadPoolExecutor(max_workers=self.pool_size) as pool:
-        # #         pool.map(Job.run, self.job_list)
+    def run(self) -> None:
+        self.status = self._status.STATE_RUNNING
+        self._main_loop()
 
-        self.main_loop = self._main_loop()
-        self.main_loop.send(None)
-        # for job in self.job_list:
-        self.main_loop.send(self.job_list)
-
-    def restart(self):
-        print('restart')
+    def restart(self) -> None:
         self.status = self._status.STATE_INIT
+        self.restore_jobs()
         self.run()
 
-    def stop(self):
-        print('stop')
+    def stop(self) -> None:
         self.status = self._status.STATE_PAUSED
-        # self._thread.join()
-        self.main_loop.throw(StopScheduler)
+        self.save_jobs()
 
-    def _main_loop(self):
-        print('loop')
+    def _main_loop(self) -> None:
+        while self.status == self._status.STATE_RUNNING and self.job_list:
+            try:
+                for job in self.job_list:
+                    job_con = job.run()
+                    next(job_con)
+                    if next(job_con):
+                        self.job_list.remove(job)
+            except StopIteration:
+                self.status = self._status.STATE_PAUSED
+                break
 
-        # wait_seconds = 6000
-        # while self.status == STATE_RUNNING:
-        # while self.status == self._status.STATE_RUNNING:
-        try:
-            while jobs := (yield):
-                # for task in tasks:
-                time.sleep(0.5)
-                print('while')
-                # self._event.wait(wait_seconds)
-                # self._event.clear()
-                self.process_jobs = self._process_jobs()
-                self.process_jobs.send(None)
-                for job in jobs:
-                    self.process_jobs.send(job)
-        except StopScheduler:
-            self._save_tasks()
-        except StopIteration:
-            pass
-
-    def _process_jobs(self):
-
-        now = int(datetime.now().timestamp())
-        # for job in self.job_list:
-        #     if int(job.start_at.timestamp()) - now < 0:
-        #         job.run()
-        #         self.job_list.remove(job)
-        #         self._event.set()
-
-        try:
-            job = (yield)
-            if int(job.start_at.timestamp()) - now < 0:
-                job.run()
-                self.job_list.remove(job)
-        except StopScheduler:
-            pass
-
-
-    def shutdown(self, *args, **kwargs):
-        print('shotdown')
+    def shutdown(self) -> None:
         self.status = self._status.STATE_PAUSED
-        # self._event.clear()
-        # self._thread.join()
 
-        self.main_loop.throw(StopScheduler)
+    def save_jobs(self) -> None:
+        with open(self._file, 'w') as convert_file:
+            convert_file.write(json.dumps([job.dict() for job in self.job_list]))
 
-    def _save_tasks(self):
-        logger.info('save')
-        # job_json = json.dump(self.job_list)
-        # with open('jobs.json', 'w') as fp:
-        #     fp.write(str(job_json))
+    def restore_jobs(self) -> None:
+        with open(self._file, 'r') as convert_file:
+            file = convert_file.read()
+        json_file = json.loads(file)
+        self.job_list = Scheduler.json_to_job(json_file)
 
-
-s = Scheduler()
-now = datetime.now()
-for i in range(15):
-    s.schedule(job=Job(now+timedelta(seconds=i), 2, 3, 4))
-
-s.run()
-
-
-############### BLOK STOP and RESTART ####################
-# now = datetime.now().timestamp()
-#
-# while int(datetime.now().timestamp()) < now + 5:
-#     time.sleep(1)
-
-
-s.stop()
-print('sleep 3 sec')
-time.sleep(3)
-s.restart()
-##########################################################
-
-
-time.sleep(3)
-s.shutdown()
-
-
-
-
+    @staticmethod
+    def json_to_job(json_file: list[dict[str, Any]]) -> list[Job]:
+        job_list = []
+        for dict_job in json_file:
+            job = Job(
+                TASKS.get(dict_job.get('task_str')),  # type: ignore
+                dict_job.get('task_str'),  # type: ignore
+                datetime.fromtimestamp(dict_job.get('start_at')),  # type: ignore
+                dict_job.get('tries')  # type: ignore
+            )
+            job_list.append(job)
+        return job_list

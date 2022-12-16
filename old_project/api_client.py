@@ -2,7 +2,7 @@ import json
 from urllib.request import urlopen
 
 from log_settings import logger
-from utils import CITIES, ERR_MESSAGE_TEMPLATE
+from old_project.utils import CITIES, ERR_MESSAGE_TEMPLATE
 
 
 class YandexWeatherAPI:

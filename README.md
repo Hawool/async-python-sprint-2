@@ -2,6 +2,17 @@
 
 Спроектировать и реализовать планировщик задач для выполнения поступающих задач.
 
+
+## Запуск:
+- `git clone https://github.com/Hawool/async-python-sprint-2.git`
+- `cd async-python-sprint-2`
+- `python -m venv venv`
+- `source venv/bin/activate`
+- `pip install -r requirements.txt`
+- `python3 scheduler_test_run.py`
+- Тесты: `pytest`
+
+
 ## Описание задания
 
 **1. Описать реализацию класса `Scheduler`.**

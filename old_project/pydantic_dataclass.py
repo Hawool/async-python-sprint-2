@@ -4,8 +4,7 @@ from typing import Any, List, Optional, Union
 
 from pydantic import BaseModel
 
-from log_settings import logger
-from utils import DRY_WEATHER, TOWN_DATA_FILENAME_CSV
+from old_project.utils import DRY_WEATHER, TOWN_DATA_FILENAME_CSV
 
 
 class Town(BaseModel):
@@ -105,7 +104,6 @@ class TownMathMethods:
             average_temp = total / difference
             town_average_temp.days.append(DayAverageTemp(date=day.date, average_temp=average_temp))
 
-        logger.info(f'average_temp_in_period was calculated for {self.city_name}')
         return town_average_temp
 
     def sum_dry_hours_in_period(self,
@@ -121,7 +119,6 @@ class TownMathMethods:
                     hours_sum += 1
             town_dry_hours.days.append(DayDryHours(date=day.date, dry_hours=hours_sum))
 
-        logger.info(f'dry_hours_in_period was calculated for {self.city_name}')
         return town_dry_hours
 
     def _average_temp_in_request_days(self) -> float:

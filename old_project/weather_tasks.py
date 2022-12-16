@@ -1,6 +1,6 @@
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Any, Optional
 
 from pydantic import ValidationError
 
@@ -16,15 +16,12 @@ class DataFetchingTask:
     cities: dict[str, str]
 
     def get_town_weather_data(self) -> list[Optional[RespModel]]:
-        logger.info('Launch of weather assembly in towns')
         with ThreadPoolExecutor() as pool:
             weather_data = pool.map(self.get_town_data, self.cities)
-        logger.info('Towns weather was collected')
         return [town for town in weather_data]
 
     def get_town_data(self, town: str) -> Optional[RespModel]:
         resp = self.yandex_api.get_forecasting(town)
-        logger.info(f'{town} weather was get received')
         return DataFetchingTask.validate_town_data(resp, town)
 
     @staticmethod
@@ -39,10 +36,9 @@ class DataFetchingTask:
 
 @dataclass
 class DataCalculationTask:
-    weather_data: list[RespModel]
+    weather_data: list[Optional[RespModel]]
 
     def calculated_weather_data(self) -> list[TownMathMethods]:
         with ProcessPoolExecutor() as pool:
             weather_data = pool.map(TownMathMethods, self.weather_data, chunksize=10)
         return [town for town in weather_data]
-
