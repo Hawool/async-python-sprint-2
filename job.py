@@ -1,17 +1,18 @@
 from datetime import datetime
+from typing import Callable, Optional
 
 
 class Job:
     def __init__(self,
-                 task: object,
+                 task: Callable,
                  task_str: str,
                  start_at: datetime,
                  tries: int = 0,
-                 dependencies: list[str] = []):
+                 dependencies: Optional[list[str]] = None):
 
         self.start_at = start_at
         self.tries = tries
-        self.dependencies = dependencies
+        self.dependencies = dependencies if dependencies else None
         self.task = task
         self.task_str = task_str
         self.actual_tries: int = 0
@@ -31,7 +32,7 @@ class Job:
         }
 
     def check_run(self):
-        if datetime.now() > self.start_at:
+        if datetime.now() < self.start_at:
             return False
         if self.dependencies:
             return False
